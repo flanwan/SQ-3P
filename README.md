@@ -1,4 +1,4 @@
-# SQ-3aP
+# SQ-3P
 #-----
 Version 1.10
 
