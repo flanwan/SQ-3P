@@ -3,7 +3,7 @@
 Version 1.10
 
 New Features:
-- factory reset
+- factory reset (made reset_eeprom.ino obsolete)
 - potentiometer adjustment (required to adopt the software to the resistance variations)
 - load, save, and factory reset can be cancelled now 
 
