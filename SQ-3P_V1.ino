@@ -20,15 +20,15 @@ const int button4Pin=11;  //F1
 const int button5Pin=10;  //F2
 const int clockInPin=13;  //CLOCK-IN
 
-const int tempoCVInPin = A0; // =Tempo potentiometer
+const int TempoCVPin = A0; // =Tempo potentiometer
 const int CV1Pin = A1; // (5V or CV1-In) via CV1 potentiometer
 const int CV2Pin = A2; // (5V or CV2-In) via CV2 potentiometer
 const int clockOutPin = A5; //->sent via the clock-socket-switch to clockInPin
 
 //Offset variables for the CV ins, for adopting to potentiometer variations
-int maxOffTempoCV;
-int maxOffCV1;
-int maxOffCV2;
+unsigned long maxOffTempoCV;
+unsigned long maxOffCV1;
+unsigned long maxOffCV2;
 
 // Variables to handle the potentiometers
 unsigned long CV1;
@@ -73,6 +73,7 @@ int adjuststep=0; //used for the poti adjustment procedure
 
 // Variables for setup parameters
 int outchannel=1;
+int inchannelvalue=0;
 int inchannel=1;
 int notelength=1;
 int transposemode=3;
@@ -118,7 +119,7 @@ void setup() {
    maxOffCV1=EEPROM.read(2);
    maxOffCV2=EEPROM.read(3);
    outchannel=EEPROM.read(4);
-   inchannel=EEPROM.read(5);
+   inchannelvalue=EEPROM.read(5);
 
    transposemode=EEPROM.read(8);
    noteoffmode=EEPROM.read(9);
@@ -135,14 +136,14 @@ void setup() {
    pinMode(button4Pin, INPUT);
    pinMode(button5Pin, INPUT);
    pinMode(clockInPin, INPUT);
-   pinMode(tempoCVInPin, INPUT);
+   pinMode(TempoCVPin, INPUT);
    pinMode(CV1Pin, INPUT);
    pinMode(CV2Pin, INPUT);
    pinMode(clockOutPin, OUTPUT);
 
    MIDI.begin();
-   MIDI.setThruFilterMode(1);
-   MIDI.turnThruOff();
+   //MIDI.setThruFilterMode(0);
+   //MIDI.turnThruOff();
    velocity=96;
 
    midireset();
@@ -150,7 +151,7 @@ void setup() {
 
    /* FIRMWARE VERSION */
    lcd.setCursor(0, 0); 
-   lcd.print(F("SQ-3P v1.10"));
+   lcd.print(F("SQ-3P v1.11b"));
    delay(1000);
    lcd.setCursor(0, 0);
    lcd.print(F("           "));  
@@ -167,6 +168,13 @@ void midireset() {
       delay(1);
    }
    MIDI.sendControlChange(123,0,outchannel);
+   while (Serial.available () > 0) {
+    if (MIDI.read()) {
+     MIDI.getData1();
+     MIDI.getData2();
+     MIDI.getChannel();
+    }
+   }
 }
 
 void printstep (int step, char type) {
@@ -216,115 +224,87 @@ void showtranspose(int transpose) {
 void adjustpotis() {
    unsigned long CV1raw=analogRead(CV1Pin) ;
    unsigned long CV2raw=analogRead(CV2Pin) ;
-   unsigned long TempoCVraw=analogRead(tempoCVInPin) ;
+   unsigned long TempoCVraw=analogRead(TempoCVPin) ;
 
-      if (adjuststep == 0) {
-         long tempoCV = (TempoCVraw * (1000.0 + maxOffTempoCV) / 1000.0) ;
-         lcd.setCursor(0, 0);
-         lcd.print(F("Tempo: "));
-         lcd.print(TempoCVraw);
-         lcd.print(F(" "));
-         lcd.setCursor(1, 1);
-         lcd.print(F("1023="));
-         lcd.print(tempoCV);
-         lcd.print(F(" "));
-         lcd.print(maxOffTempoCV);
-         lcd.print(F("        "));
-
-         if (button4State == 1 && button4StatePrev == 0)  {
-            maxOffTempoCV--;
-            button4StatePrev=1;
-         }
-         if (button5State == 1 && button5StatePrev == 0 ) {
-            maxOffTempoCV++;
-            button5StatePrev=1;
-         }
-         if (button4State == 0 && button4StatePrev == 1) button4StatePrev=0;
-         if (button5State == 0 && button5StatePrev == 1) button5StatePrev=0;
-
-         if (tempoCV == 1023 ) {
-            clearscreen();
-            lcd.setCursor(0, 0);
-            lcd.print(F("Tempo is good!"));
-            EEPROM.write(1,maxOffTempoCV);
-
-            delay(1000);
-            clearscreen();
-            adjuststep=1;
-         }
-       }
+  if (adjuststep == 0) {
+    while ((TempoCVraw + maxOffTempoCV) != 1023) {
+      TempoCVraw=analogRead(TempoCVPin)+0.5 ;
+      if ((TempoCVraw + maxOffTempoCV) < 1023) maxOffTempoCV++;
+      if ((TempoCVraw + maxOffTempoCV) > 1023) maxOffTempoCV--;
+      lcd.setCursor(0, 0);
+      lcd.print("Tempo: ");
+      lcd.print(TempoCVraw);
+      lcd.print(" ");
+      lcd.setCursor(0, 1);
+      lcd.print("1023=");
+      lcd.print(TempoCVraw + maxOffTempoCV);
+      lcd.print(" ");
+      lcd.print(maxOffTempoCV);
+    }
+    if ((TempoCVraw + maxOffTempoCV) == 1023 ) {
+      clearscreen();
+      lcd.setCursor(0, 0);
+      lcd.print(F("Tempo is good!"));
+      EEPROM.write(1,maxOffTempoCV);
+      delay(1000);
+      clearscreen();
+      adjuststep=1;
+    }
+  }
          
+  if (adjuststep == 1) {
+    while ((CV1raw + maxOffCV1) != 1023) {
+      CV1raw=analogRead(CV1Pin)+0.5 ;
+      if ((CV1raw + maxOffCV1) < 1023) maxOffCV1++;
+      if ((CV1raw + maxOffCV1) > 1023) maxOffCV1--;
+      lcd.setCursor(0, 0);
+      lcd.print("CV1: ");
+      lcd.print(CV1raw);
+      lcd.print(" ");
+      lcd.setCursor(0, 1);
+      lcd.print("1023=");
+      lcd.print(CV1raw + maxOffCV1);
+      lcd.print(" ");
+      lcd.print(maxOffCV1);
+    }
+    if ((CV1raw + maxOffCV1) == 1023 ) {
+      clearscreen();
+      lcd.setCursor(0, 0);
+      lcd.print(F("CV1 is good!"));
+      EEPROM.write(2,maxOffCV1);
+      delay(1000);
+      clearscreen();
+      adjuststep=2;
+      }
+    } 
 
-       if (adjuststep == 1) {
-         CV1 = (CV1raw * (1000.0 + maxOffCV1) / 1000.0) ;
-         lcd.setCursor(0, 0);
-         lcd.print(F("CV1raw: "));
-         lcd.print(CV1raw);
-         lcd.print(F(" "));
-         lcd.setCursor(1, 1);
-         lcd.print(F("1023="));
-         lcd.print(CV1);
-         lcd.print(F(" "));
-         lcd.print(maxOffCV1);
-         lcd.print(F("        "));
-         
-         if (button4State == 1 && button4StatePrev == 0)  {
-            maxOffCV1--;
-            button4StatePrev=1;
-         }
-         if (button5State == 1 && button5StatePrev == 0 ) {
-            maxOffCV1++;
-            button5StatePrev=1;
-         }
-         if (button4State == 0 && button4StatePrev == 1) button4StatePrev=0;
-         if (button5State == 0 && button5StatePrev == 1) button5StatePrev=0;
-         
-         if (CV1 == 1023 ) {
-            clearscreen();
-            lcd.setCursor(0, 0);
-            lcd.print(F("CV1 is good!"));
-            EEPROM.write(2,maxOffCV1);
-            delay(1000);
-            clearscreen();
-            adjuststep=2;
-         }
-       } 
+  if (adjuststep == 2) {
+    while ((CV2raw + maxOffCV2) != 1023) {
+      CV2raw=analogRead(CV2Pin)+0.5 ;
+      if ((CV2raw + maxOffCV2) < 1023) maxOffCV2++;
+      if ((CV2raw + maxOffCV2) > 1023) maxOffCV2--;
+      lcd.setCursor(0, 0);
+      lcd.print("CV2: ");
+      lcd.print(CV2raw);
+      lcd.print(" ");
+      lcd.setCursor(0, 1);
+      lcd.print("1023=");
+      lcd.print(CV2raw + maxOffCV2);
+      lcd.print(" ");
+      lcd.print(maxOffCV2);
+    }
+    if ((CV2raw + maxOffCV2) == 1023 ) {
+      clearscreen();
+      lcd.setCursor(0, 0);
+      lcd.print(F("CV2 is good!"));
+      EEPROM.write(3,maxOffCV2);
+      delay(1000);
+      clearscreen();
+      adjuststep=0;
+      edit=0;
+    }
+  } 
 
-       if (adjuststep == 2) {
-         CV2 = (CV2raw * (1000.0 + maxOffCV2) / 1000.0) ;
-         lcd.setCursor(0, 0);
-         lcd.print(F("CV2raw: "));
-         lcd.print(CV2raw);
-         lcd.print(F(" "));
-         lcd.setCursor(1, 1);
-         lcd.print(F("1023="));
-         lcd.print(CV2);
-         lcd.print(F(" "));
-         lcd.print(maxOffCV2);
-         lcd.print(F("        "));
-
-         if (button4State == 1 && button4StatePrev == 0)  {
-            maxOffCV2--;
-            button4StatePrev=1;
-         }
-         if (button5State == 1 && button5StatePrev == 0 ) {
-            maxOffCV2++;
-            button5StatePrev=1;
-         }
-         if (button4State == 0 && button4StatePrev == 1) button4StatePrev=0;
-         if (button5State == 0 && button5StatePrev == 1) button5StatePrev=0;
-         
-         if (CV2 == 1023 ) {
-            clearscreen();
-            lcd.setCursor(0, 0);
-            lcd.print(F("CV2 is good!"));
-            EEPROM.write(3,maxOffCV2);
-            delay(1000);
-            clearscreen();
-            adjuststep=0;
-            edit=0;
-         }
-       } 
 }
 
 void factoryreset() {
@@ -349,11 +329,11 @@ void factoryreset() {
    EEPROM.write(74,72); //C
    EEPROM.write(31,8); //Laststep
 
-   EEPROM.write(1,0); //maxOfftempoCV
-   EEPROM.write(2,0); //maxOffCV1
-   EEPROM.write(3,0); //maxOffCV2   
+   EEPROM.write(1,90); //maxOffTempoCV
+   EEPROM.write(2,100); //maxOffCV1
+   EEPROM.write(3,100); //maxOffCV2   
    EEPROM.write(4,1); //outchannel
-   EEPROM.write(5,1); //inchannel
+   EEPROM.write(5,1); //inchannelvalue
    
    EEPROM.write(8,3); //transposemode
    EEPROM.write(9,1); //noteoffmode
@@ -368,7 +348,7 @@ void factoryreset() {
    maxOffCV1=EEPROM.read(2);
    maxOffCV2=EEPROM.read(3);
    outchannel=EEPROM.read(4);
-   inchannel=EEPROM.read(5);
+   inchannelvalue=EEPROM.read(5);
 
    transposemode=EEPROM.read(8);
    noteoffmode=EEPROM.read(9);
@@ -431,13 +411,43 @@ void loop() {
    button5State=!digitalRead(button5Pin);
    unsigned long CV1raw=analogRead(CV1Pin) ;
    unsigned long CV2raw=analogRead(CV2Pin) ;
-   unsigned long TempoCVraw=analogRead(tempoCVInPin) ;
+   unsigned long TempoCVraw=analogRead(TempoCVPin) ;
+   unsigned long CV1=CV1raw + ((CV1raw + 1.0) / (1023.0 - maxOffCV1) * maxOffCV1 );
+   unsigned long CV2=CV2raw + ((CV2raw + 1.0) / (1023.0 - maxOffCV2) * maxOffCV2 );
+   unsigned long TempoCV=TempoCVraw + ((TempoCVraw + 1.0) / (1023.0 - maxOffTempoCV) * maxOffTempoCV );
+ 
+   velocity=(CV1 / 8);
+   if (velocity == 0 ) velocity = 1; // VELOCITY=0 WOULD BE IDENTICAL WITH NOTE OFF, SO WE DO NOT WANT SEND THAT ON NOTE-ON COMMANDS
    
-   velocity=(CV1 / 8) + 1;
-   CV2=(CV2 / 4) + 1;
+   unsigned long notelengthCV=(CV2 * 0.5);
+   if (notelengthCV <= 1 ) notelengthCV = 1;
+
+   if (inchannelvalue == 0) {
+     inchannel = outchannel;
+   } else {
+    inchannel = inchannelvalue;
+   }
+
+   
+   /* FOR DEBUGGING ONLY 
+   if (runmode == 0 && writemode == 0 && menu == 0) {
+    lcd.setCursor(4,0);
+    lcd.print(maxOffCV1);
+    lcd.print(F(" "));
+    lcd.setCursor(0,1);
+    lcd.print(CV1raw);
+    lcd.print(F(" "));
+    lcd.print((maxOffCV1 + 1) / 100.0);
+    lcd.print(F(" "));
+    lcd.print(velocity);
+    lcd.print(F(" "));
+
+   }
+   /**/
+   
    /* GENERAT THE INTERNAL CLOCK */
    thistime=millis();
-   BPMf=analogRead(tempoCVInPin);
+   BPMf=analogRead(TempoCVPin);
    BPMf=round(BPMf*0.24);
    BPMi=BPMf+1;
    tempoX=round(7500/BPMi);  
@@ -523,8 +533,9 @@ void loop() {
       if (button3State == 1 && button3StatePrev == 0 && runmode == 0 && writemode == 0) { //WRITE
          button3StatePrev=1;
          runmode=0;
-         writemode=1; 
+         writemode=1;
          stepNumber=0;
+         midireset(); 
          clearscreen(); 
       }
       if (button3State == 0 && button3StatePrev == 1)  button3StatePrev=0;
@@ -758,32 +769,32 @@ void loop() {
            lcd.setCursor(0, 0); 
            lcd.print(F("INPUT CHANNEL"));
            lcd.setCursor(1, 1);
-           lcd.print(inchannel);
+           lcd.print(inchannelvalue);
            if (edit == 1) {
               if (button4State == 1 && button4StatePrev == 0) { //DECREASE CHANNEL
                  button4StatePrev=1;
-                 if (inchannel > 0) inchannel--;
+                 if (inchannelvalue > 0) inchannelvalue--;
                  lcd.setCursor(1, 1); 
                  lcd.print(F("      "));
                  lcd.setCursor(1, 1); 
-                 lcd.print(inchannel);              }
+                 lcd.print(inchannelvalue);              }
               if (button4State == 0 && button4StatePrev == 1) {
                  button4StatePrev=0;
               }
       
               if (button5State == 1 && button5StatePrev == 0) { //INCREASE CHANNEL
                  button5StatePrev=1;
-                 if (inchannel < 16) inchannel++;
+                 if (inchannelvalue < 16) inchannelvalue++;
                  lcd.setCursor(1, 1); 
                  lcd.print(F("      "));
                  lcd.setCursor(1, 1); 
-                 lcd.print(inchannel);              }
+                 lcd.print(inchannelvalue);              }
               if (button5State == 0 && button5StatePrev == 1) {
                  button5StatePrev=0;
               }
               if (button3State == 1 && button3StatePrev == 0) { 
                  button3StatePrev=1;
-                 EEPROM.write(5,inchannel);
+                 EEPROM.write(5,inchannelvalue);
                  delay(10);
                  edit=0;
               }
@@ -974,17 +985,24 @@ void loop() {
               lcd.print(F("PRESS WRITE")); 
            }          
          
-              if (button3State == 1 && button3StatePrev == 0) {
-                 button3StatePrev=1;
-                 adjuststep=0;
-                 edit=1;
-              }
-              if (button3State == 0 && button3StatePrev == 1) {
-                 button3StatePrev=0;
-              }
-              if (edit == 1) {
-                 adjustpotis();
-              }
+           if (edit == 1) {
+             lcd.setCursor(0, 0); 
+             lcd.print(F("SET POTIS TO MAX"));
+             lcd.setCursor(1, 1); 
+             lcd.print(F("THEN PRESS WRITE")); 
+             if (button3State == 1 && button3StatePrev == 0) {
+               button3StatePrev=1;
+               clearscreen();
+               adjuststep=0;
+               adjustpotis();
+               edit=0;
+               clearscreen();
+             }
+             if (button3State == 0 && button3StatePrev == 1) {
+              button3StatePrev=0;
+             }
+        }
+
         break;
         
         case 12: //FACTORY RESET
@@ -1011,12 +1029,13 @@ void loop() {
               if (button3State == 0 && button3StatePrev == 1) {
                  button3StatePrev=0;
               }
-              if (button2State == 1 && button2StatePrev == 0) { 
-                 edit=0;
-                 button2StatePrev=1;
+              if (button2State == 1 && button2StatePrev == 0 && menu > 0) { 
+                  button2StatePrev=1;
               }
-              if (button2State == 0 && button2StatePrev == 1) {
+              if (button2State == 0 && button2StatePrev == 1 && menu > 0) {
                  button2StatePrev=0;
+                 clearscreen();
+                 edit=0;
               }
            }                      
         break;
@@ -1046,12 +1065,13 @@ void loop() {
               if (button3State == 0 && button3StatePrev == 1) {
                  button3StatePrev=0;
               }
-              if (button2State == 1 && button2StatePrev == 0) { 
-                 edit=0;
-                 button2StatePrev=1;
+              if (button2State == 1 && button2StatePrev == 0 && menu > 0) { 
+                  button2StatePrev=1;
               }
-              if (button2State == 0 && button2StatePrev == 1) {
+              if (button2State == 0 && button2StatePrev == 1 && menu > 0) {
                  button2StatePrev=0;
+                 clearscreen();
+                 edit=0;
               }
 
            }                      
@@ -1082,12 +1102,13 @@ void loop() {
               if (button3State == 0 && button3StatePrev == 1) {
                  button3StatePrev=0;
               }
-              if (button2State == 1 && button2StatePrev == 0) { 
-                 edit=0;
-                 button2StatePrev=1;
+              if (button2State == 1 && button2StatePrev == 0 && menu > 0) { 
+                  button2StatePrev=1;
               }
-              if (button2State == 0 && button2StatePrev == 1) {
+              if (button2State == 0 && button2StatePrev == 1 && menu > 0) {
                  button2StatePrev=0;
+                 clearscreen();
+                 edit=0;
               }
            }                      
         break;
@@ -1251,6 +1272,7 @@ void loop() {
          }
          
          writemode=0;
+         clearscreen();
       } // stop-write-condition
    } //if (writemode == 1)
 
@@ -1353,7 +1375,7 @@ void loop() {
       }
    }
      /*  
-      *   Read external trigger
+      *   Read external trigger or clock respectively
       */
       triggerState=!digitalRead(clockInPin);
       if (triggerState == 1 && clockInStatePrev == 0) {
@@ -1364,7 +1386,7 @@ void loop() {
       if (triggerState == 0 && clockInStatePrev == 1 && noteoffmode == 1) {
          offtrigger=1;
       }
-      if ((noteoffmode == 2 && thistime >= triggertime + CV2) || (noteoffmode == 2 && ontrigger==1 && clockInStatePrev == 0)) {
+      if ((noteoffmode == 2 && thistime >= triggertime + notelengthCV) || (noteoffmode == 2 && ontrigger==1 && clockInStatePrev == 0)) {
          offtrigger=1;
       }
 
