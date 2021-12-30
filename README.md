@@ -30,5 +30,5 @@ SQ-3P for Arduino is OpenSoftware under the creative common license "cc by-nc-sa
 
 Requirements: https://github.com/FortySevenEffects/arduino_midi_library/archive/refs/heads/master.zip
 
-
+For instruction see http://www.florian-anwander.de/sq-3p/
 
