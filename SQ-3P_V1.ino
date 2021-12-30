@@ -168,13 +168,6 @@ void midireset() {
       delay(1);
    }
    MIDI.sendControlChange(123,0,outchannel);
-   while (Serial.available () > 0) {
-    if (MIDI.read()) {
-     MIDI.getData1();
-     MIDI.getData2();
-     MIDI.getChannel();
-    }
-   }
 }
 
 void printstep (int step, char type) {
