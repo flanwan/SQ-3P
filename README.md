@@ -1,14 +1,16 @@
 # SQ-3P
 #-----
+Version 1.11b
+
+Bugfixes:
+- CV definition was not adopted to new adjustment
+
+#-----
 Version 1.11.
 
 Changes:
 - Changed potentiometer adjustment procedure to automatic adjustment
 
-Version 1.11b
-
-Bugfixes:
-- CV definition was not adopted to new adjustment
 
 #-----
 Version 1.10
