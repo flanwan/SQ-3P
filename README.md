@@ -1,14 +1,20 @@
 # SQ-3P
 #-----
 Version 1.12c
-- Bug fixed: MIDI-Clock-Stop did not send Note-Offs
+
+Bugfixes:
+- MIDI-Clock-Stop did not send Note-Offs
 
 #-----
 Version 1.12b
+
+New Features:
 - added system reset (press all five buttons together) 
 
 #-----
 Version 1.12
+
+New Features:
 - added MIDI-Clock
  
 #-----
