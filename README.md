@@ -1,5 +1,11 @@
 # SQ-3P
 #-----
+Version 1.13a
+
+New Features:
+- the center note for transposition can be set now (before it was hardcoded to C4 / MIDI note 60).
+
+#-----
 Version 1.12c
 
 Bugfixes:
