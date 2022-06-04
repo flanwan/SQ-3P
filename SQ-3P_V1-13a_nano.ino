@@ -154,7 +154,7 @@ void setup() {
 
   /* FIRMWARE VERSION */
   lcd.setCursor(0, 0);
-  lcd.print(F("SQ-3P v1.12d"));
+  lcd.print(F("SQ-3P v1.13a"));
   delay(1000);
   lcd.setCursor(0, 0);
   lcd.print(F("           "));
