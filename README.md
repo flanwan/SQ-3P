@@ -1,5 +1,11 @@
 # SQ-3P
 #-----
+Version 1.14a
+
+Bugfixes:
+- MIDI-Thru settings did not work as described; fixed.
+
+#-----
 Version 1.13a
 
 New Features:
